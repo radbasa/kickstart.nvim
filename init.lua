@@ -256,6 +256,7 @@ rtp:prepend(lazypath)
 -- NOTE: Here is where you install your plugins.
 require('lazy').setup({
   -- NOTE: Plugins can be added via a link or github org/name. To run setup automatically, use `opts = {}`
+  { import = 'custom.plugins' },
   { 'NMAC427/guess-indent.nvim', opts = {} },
 
   -- Alternatively, use `config = function() ... end` for full control over the configuration.
@@ -613,6 +614,7 @@ require('lazy').setup({
       --
       -- You can press `g?` for help in this menu.
       local ensure_installed = vim.tbl_keys(servers or {})
+
       vim.list_extend(ensure_installed, {
         'lua-language-server', -- Lua Language server
         'stylua', -- Used to format Lua code
@@ -810,25 +812,6 @@ require('lazy').setup({
   --   end,
   --  },
 
-  {
-    'catppuccin/nvim',
-    name = 'catppuccin',
-    priority = 1000,
-    opts = {
-      flavour = 'macchiato',
-      custom_highlights = function(colors)
-        return {
-          LineNr = { fg = colors.overlay0 },
-          CursorLineNr = { fg = colors.peach, style = { 'bold' } },
-        }
-      end,
-    },
-    config = function(_, opts)
-      require('catppuccin').setup(opts)
-      vim.cmd.colorscheme 'catppuccin'
-    end,
-  },
-
   -- Highlight todo, notes, etc in comments
   { 'folke/todo-comments.nvim', event = 'VimEnter', dependencies = { 'nvim-lua/plenary.nvim' }, opts = { signs = false } },
 
@@ -870,9 +853,17 @@ require('lazy').setup({
 
   { -- Highlight, edit, and navigate code
     'nvim-treesitter/nvim-treesitter',
+    branch = 'master',
+    build = ':TSUpdate',
     config = function()
-      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc' }
-      require('nvim-treesitter').install(filetypes)
+      local status, ts_configs = pcall(require, 'nvim-treesitter.configs')
+      if not status then ts_configs = require 'nvim-treesitter.config' end
+      ts_configs.setup {
+        ensure_installed = { 'r', 'lua', 'vim', 'vimdoc', 'markdown', 'markdown_inline', 'yaml' },
+        highlight = { enable = true },
+        indent = { enable = true },
+      }
+      local filetypes = { 'bash', 'c', 'diff', 'html', 'lua', 'luadoc', 'markdown', 'markdown_inline', 'query', 'vim', 'vimdoc', 'r' }
       vim.api.nvim_create_autocmd('FileType', {
         pattern = filetypes,
         callback = function() vim.treesitter.start() end,
@@ -892,7 +883,7 @@ require('lazy').setup({
   -- require 'kickstart.plugins.debug',
   -- require 'kickstart.plugins.indent_line',
   -- require 'kickstart.plugins.lint',
-  -- require 'kickstart.plugins.autopairs',
+  require 'kickstart.plugins.autopairs',
   -- require 'kickstart.plugins.neo-tree',
   -- require 'kickstart.plugins.gitsigns', -- adds gitsigns recommend keymaps
 
@@ -928,5 +919,25 @@ require('lazy').setup({
   },
 })
 
+vim.api.nvim_create_autocmd('FileType', {
+  pattern = 'r',
+  callback = function(args)
+    vim.lsp.start {
+      name = 'r-native',
+      -- Use the absolute path from 'which R'
+      cmd = { '/usr/local/bin/R', '--no-echo', '-e', 'languageserver::run()' },
+      -- Force the root directory to the folder containing the file
+      -- root_dir = vim.fs.dirname(vim.api.nvim_buf_get_name(args.buf)),
+      root_dir = vim.fs.root(args.buf, { '.git', '.Rproj', '.' }),
+      settings = {
+        r = {
+          lsp = {
+            diagnostics = false, -- This stops the 'callr' subprocess error
+          },
+        },
+      },
+    }
+  end,
+})
 -- The line beneath this is called `modeline`. See `:help modeline`
 -- vim: ts=2 sts=2 sw=2 et
