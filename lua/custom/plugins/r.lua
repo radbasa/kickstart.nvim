@@ -27,8 +27,9 @@ return {
       min_editor_width = 72,
       rconsole_width = 78,
       -- Ensure it follows your 'rig' symlink
-      R_path = '/usr/local/bin',
+      -- R_path = '/usr/local/bin',
       -- R_app = 'R_HOME=' .. r_home .. ' radian',
+      R_app = 'arf',
     },
   },
 }
